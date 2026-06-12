@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>刀刃乱斗</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:Arial,sans-serif;touch-action:none}
+#gc{display:block;position:absolute;top:0;left:0}
+#ui{position:absolute;inset:0;pointer-events:none;z-index:10}
+#kill-counter{position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.75);border:2px solid #ff6622;border-radius:12px;padding:6px 14px;font-size:13px;color:#ffaa44;font-weight:700}
+#hud-top{position:absolute;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.hb{background:rgba(0,0,0,0.75);border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:#fff}
+#bn{font-weight:700;font-size:13px}
+#mmc{position:absolute;bottom:10px;left:10px;border:2px solid rgba(255,255,255,0.25);border-radius:10px}
+#jzone{position:absolute;bottom:0;left:0;width:100%;height:45%;pointer-events:all}
+#jbase{position:absolute;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,0.05);border:2px solid rgba(255,255,255,0.2);display:none;transform:translate(-50%,-50%)}
+#jstick{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,0.28);border:2px solid rgba(255,255,255,0.55);top:50%;left:50%;transform:translate(-50%,-50%)}
+#exit-btn{position:absolute;top:10px;right:10px;background:rgba(180,30,30,0.75);border:1px solid #ff6464;border-radius:8px;padding:6px 14px;font-size:11px;color:#fff;cursor:pointer;pointer-events:all;font-weight:700}
+#exit-btn:hover{background:rgba(220,40,40,0.9)}
+.ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;backdrop-filter:blur(8px)}
+#ov-start{background:rgba(5,5,12,0.93)}
+#ov-death{background:rgba(10,0,0,0.88);display:none}
+#ov-win{background:rgba(20,10,40,0.92);display:none}
+#ov-exit{background:rgba(0,0,0,0.88);display:none}
+#ov-start h1{font-size:2rem;font-weight:900;background:linear-gradient(135deg,#ff6b35,#f4c542,#a855f7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.sub{color:#888;font-size:.76rem;margin-bottom:18px;text-align:center;padding:0 22px;line-height:1.7}
+.bb{font-family:inherit;font-size:1rem;font-weight:700;padding:12px 36px;border:none;border-radius:13px;cursor:pointer;margin:5px;transition:opacity .15s,transform .1s}
+.bb:hover{opacity:.86;transform:scale(1.03)}
+.bs{background:linear-gradient(135deg,#ff6b35,#e8442a);color:#fff}
+.bx{background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.15)}
+#ov-death h2{color:#ff4444}
+#ov-win h2{color:#44ff44;font-size:2.3rem}
+.ov h2{font-size:2rem;font-weight:900;margin-bottom:10px}
+.stats{color:#ccc;font-size:.9rem;margin-bottom:22px;text-align:center;line-height:2}
+.credit{font-size:.74rem;color:#666;margin-top:14px}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+<canvas id="mmc" width="160" height="160"></canvas>
+<div id="ui">
+  <div id="kill-counter">⚔️ 击杀：0</div>
+  <div id="hud-top">
+    <div class="hb" id="blade-hud"><div id="bn">铁剑 Lv1</div><div style="font-size:9px;color:#aaa" id="bc">×1把</div></div>
+    <div class="hb">🏆 <span id="sv">0</span></div>
+  </div>
+  <button id="exit-btn" onclick="askExit()">退出</button>
+  <div id="jzone"><div id="jbase"><div id="jstick"></div></div></div>
+</div>
+
+<div class="ov" id="ov-start">
+  <div style="font-size:4.2rem;margin-bottom:2px;filter:drop-shadow(0 0 24px #ff6622)">⚔️</div>
+  <h1 style="font-size:2.7rem;letter-spacing:.14em;margin-bottom:2px">刀刃乱斗</h1>
+  <div style="color:#444;font-size:.68rem;letter-spacing:.25em;margin-bottom:18px;text-transform:uppercase">BLADE BRAWL</div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:18px;max-width:310px;width:92%">
+    <div style="background:rgba(255,102,34,0.1);border:1px solid rgba(255,102,34,0.28);border-radius:10px;padding:9px 10px;font-size:10.5px;color:#ffaa66;text-align:center">🕹️ <b>移动</b><br><span style="color:#666">WASD / 摇杆</span></div>
+    <div style="background:rgba(255,200,0,0.08);border:1px solid rgba(255,200,0,0.22);border-radius:10px;padding:9px 10px;font-size:10.5px;color:#ffdd77;text-align:center">⚔️ <b>攻击</b><br><span style="color:#666">刀尖碰体即死</span></div>
+    <div style="background:rgba(100,200,100,0.08);border:1px solid rgba(100,200,100,0.22);border-radius:10px;padding:9px 10px;font-size:10.5px;color:#88dd88;text-align:center">📦 <b>升级</b><br><span style="color:#666">集满10把刀</span></div>
+    <div style="background:rgba(80,120,255,0.1);border:1px solid rgba(80,120,255,0.28);border-radius:10px;padding:9px 10px;font-size:10.5px;color:#88aaff;text-align:center">🎯 <b>终极</b><br><span style="color:#666">13级末日飞镖</span></div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;width:92%;max-width:310px;margin-bottom:16px">
+    <button class="bb bs" onclick="startGame('normal')" style="font-size:1.05rem;padding:13px;letter-spacing:.05em;width:100%">
+      ⚔️ 普通模式
+    </button>
+    <button onclick="startGame('dart')" style="font-family:inherit;font-size:1.05rem;font-weight:700;padding:13px;letter-spacing:.05em;width:100%;border:none;border-radius:13px;cursor:pointer;background:linear-gradient(135deg,#1a2a88,#3355cc);color:#aaccff;border:1px solid rgba(100,150,255,0.4);box-shadow:0 0 20px rgba(50,80,255,0.3);transition:opacity .15s,transform .1s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      🎯 飞镖模式 <span style="font-size:.7rem;color:#5577bb;margin-left:4px">开局即拥有飞镖</span>
+    </button>
+    <button onclick="startGame('boss')" style="font-family:inherit;font-size:1.05rem;font-weight:700;padding:13px;letter-spacing:.05em;width:100%;border:none;border-radius:13px;cursor:pointer;background:linear-gradient(135deg,#660000,#cc2200);color:#ffaaaa;border:1px solid rgba(255,80,50,0.5);box-shadow:0 0 20px rgba(200,50,20,0.35);transition:opacity .15s,transform .1s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+      💀 Boss战模式 <span style="font-size:.7rem;color:#884444;margin-left:4px">直面混沌领主</span>
+    </button>
+  </div>
+
+  <p style="font-size:.7rem;color:#333;letter-spacing:.08em;margin:0">制作：张彬林 (Billy Zhang)</p>
+</div>
+
+<div class="ov" id="ov-death">
+  <h2>💀 阵亡</h2>
+  <div class="stats" id="ds"></div>
+  <button class="bb" id="revive-btn" onclick="doRevive()" style="background:linear-gradient(135deg,#cc8800,#ffaa00);color:#fff;font-size:1.05rem;display:none;margin-bottom:4px">
+    ✨ 复活 <span style="font-size:.72rem;opacity:.8">（仅一次）</span>
+  </button>
+  <button class="bb bs" onclick="startGame(isDartMode?'dart':'normal')">再来一局</button>
+  <button class="bb bx" onclick="showStart()">主菜单</button>
+</div>
+
+<div class="ov" id="ov-win">
+  <h2>🌀 末日风暴</h2>
+  <div class="stats" id="ws"></div>
+  <button class="bb bs" onclick="startGame(isDartMode?'dart':'normal')">再来一局</button>
+  <button class="bb bx" onclick="showStart()">主菜单</button>
+</div>
+
+<div class="ov" id="ov-exit">
+  <h2 style="color:#fff;font-size:1.3rem;margin-bottom:10px">确认退出？</h2>
+  <p style="color:#888;font-size:.85rem;margin-bottom:20px">游戏进度将丢失</p>
+  <div style="display:flex;gap:12px">
+    <button class="bb bs" onclick="doExit()">确认退出</button>
+    <button class="bb bx" onclick="cancelExit()">继续游戏</button>
+  </div>
+</div>
+
+<div class="ov" id="ov-choice" style="display:none;background:rgba(5,5,12,0.95)">
+  <div style="font-size:3rem;margin-bottom:8px;filter:drop-shadow(0 0 20px #f4c542)">👑</div>
+  <h2 style="color:#f4c542;font-size:1.8rem;font-weight:900;margin-bottom:4px;letter-spacing:.08em">你已达到最强</h2>
+  <p style="color:#555;font-size:.75rem;letter-spacing:.15em;margin-bottom:28px;text-transform:uppercase">Lv13 · 末日飞镖已解锁</p>
+  <p style="color:#aaa;font-size:1rem;font-weight:700;margin-bottom:16px;letter-spacing:.04em">——&nbsp;当懦夫，还是当英雄？&nbsp;——</p>
+  <div style="display:flex;flex-direction:column;gap:10px;width:92%;max-width:300px">
+    <button onclick="chooseHero()" style="font-family:inherit;font-size:1.05rem;font-weight:900;padding:14px;border:none;border-radius:13px;cursor:pointer;background:linear-gradient(135deg,#880000,#cc2200);color:#ffaaaa;border:1px solid rgba(255,80,50,0.5);box-shadow:0 0 24px rgba(200,50,20,0.4);letter-spacing:.06em;transition:opacity .15s,transform .1s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+      ⚔️ 当英雄 &nbsp;<span style="font-size:.72rem;opacity:.7">挑战混沌领主</span>
+    </button>
+    <button onclick="chooseCoward()" style="font-family:inherit;font-size:1.05rem;font-weight:700;padding:14px;border:none;border-radius:13px;cursor:pointer;background:linear-gradient(135deg,#1a2a88,#3355cc);color:#aaccff;border:1px solid rgba(100,150,255,0.4);box-shadow:0 0 18px rgba(50,80,255,0.25);letter-spacing:.06em;transition:opacity .15s,transform .1s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+      🎯 当懦夫 &nbsp;<span style="font-size:.72rem;opacity:.7">只要爽，不要Boss</span>
+    </button>
+  </div>
+</div>
+
+<script>
+// ── SOUND ENGINE (Web Audio API) ──────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudio(){
+  if(!audioCtx){ try{ audioCtx = new AudioCtx(); }catch(e){ return null; } }
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq, type, vol, duration, freqEnd, attack=0.005, decay=0.05){
+  const ac = getAudio(); if(!ac) return;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  if(freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + duration);
+  gain.gain.setValueAtTime(0, ac.currentTime);
+  gain.gain.linearRampToValueAtTime(vol, ac.currentTime + attack);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  osc.start(ac.currentTime);
+  osc.stop(ac.currentTime + duration + 0.05);
+}
+
+function playNoise(vol, duration, filterFreq=2000){
+  const ac = getAudio(); if(!ac) return;
+  const bufSize = ac.sampleRate * duration;
+  const buf = ac.createBuffer(1, bufSize, ac.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<bufSize;i++) data[i] = Math.random()*2-1;
+  const src = ac.createBufferSource();
+  src.buffer = buf;
+  const filter = ac.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = filterFreq;
+  filter.Q.value = 1.5;
+  const gain = ac.createGain();
+  src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+  gain.gain.setValueAtTime(vol, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+  src.start(); src.stop(ac.currentTime + duration + 0.05);
+}
+
+const SFX = {
+  kill(){
+    playTone(300, 'sawtooth', 0.18, 0.12, 80);
+    playNoise(0.08, 0.1, 1200);
+  },
+  dartKill(){
+    playTone(600, 'sine', 0.12, 0.05, 200);
+    playNoise(0.15, 0.15, 3000);
+    setTimeout(()=>playTone(400,'square',0.08,0.08,100), 30);
+  },
+  levelUp(){
+    playTone(440, 'sine', 0.15, 0.1);
+    setTimeout(()=>playTone(554,'sine',0.15,0.1),100);
+    setTimeout(()=>playTone(659,'sine',0.18,0.18),200);
+    setTimeout(()=>playTone(880,'sine',0.2,0.28),350);
+  },
+  dartMode(){
+    for(let i=0;i<6;i++){
+      setTimeout(()=>{
+        playTone(200+i*120,'sine',0.14,0.12);
+      }, i*80);
+    }
+    setTimeout(()=>playTone(1200,'sine',0.2,0.4,600),500);
+  },
+  death(){
+    playTone(300,'sawtooth',0.2,0.15,150);
+    setTimeout(()=>playTone(200,'sawtooth',0.18,0.2,80),150);
+    setTimeout(()=>playTone(120,'square',0.15,0.4,60),350);
+    playNoise(0.12,0.5,400);
+  },
+  pickupBlade(){
+    playTone(660,'sine',0.08,0.07,880);
+  },
+  bladeCrash(){
+    playNoise(0.1, 0.08, 800);
+    playTone(180,'square',0.08,0.08,120);
+  },
+  dartFire(){
+    playTone(800,'sine',0.05,0.04,1200);
+  },
+};
+
+const canvas=document.getElementById('gc');
+const ctx=canvas.getContext('2d');
+const mmc=document.getElementById('mmc');
+const mmx=mmc.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+resize();window.addEventListener('resize',resize);
+
+// ── BLADE DEFINITIONS (lv1-12 + lv13 special) ─────────────────
+const BLADES=[
+  {lv:1, name:'铁剑',    c:'#aaaaaa',g:'rgba(180,180,180,0.8)',R:44,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=10;c.strokeStyle=this.c;c.lineWidth=3.5*s;c.lineCap='round';c.beginPath();c.moveTo(0,-14*s);c.lineTo(0,14*s);c.stroke();c.lineWidth=2*s;c.beginPath();c.moveTo(-6*s,-2*s);c.lineTo(6*s,-2*s);c.stroke();c.restore();}},
+  {lv:2, name:'钢剑',    c:'#dde8ff',g:'rgba(200,210,255,0.9)',R:46,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=12;c.strokeStyle=this.c;c.lineWidth=5*s;c.lineCap='round';c.beginPath();c.moveTo(0,-16*s);c.lineTo(0,12*s);c.stroke();c.strokeStyle='rgba(255,255,255,0.6)';c.lineWidth=1.2*s;c.beginPath();c.moveTo(0,-14*s);c.lineTo(0,10*s);c.stroke();c.strokeStyle=this.c;c.lineWidth=2.5*s;c.beginPath();c.moveTo(-7*s,-3*s);c.lineTo(7*s,-3*s);c.stroke();c.restore();}},
+  {lv:3, name:'精钢刀',  c:'#66cc66',g:'rgba(100,200,100,0.9)',R:48,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=13;c.strokeStyle=this.c;c.lineWidth=4*s;c.lineCap='round';c.beginPath();c.moveTo(0,14*s);c.quadraticCurveTo(8*s,-2*s,2*s,-15*s);c.stroke();c.lineWidth=2*s;c.beginPath();c.moveTo(-5*s,4*s);c.lineTo(6*s,4*s);c.stroke();c.restore();}},
+  {lv:4, name:'蓝晶剑',  c:'#44aaff',g:'rgba(50,150,255,0.9)',R:50,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=15;c.fillStyle=this.c+'99';c.strokeStyle=this.c;c.lineWidth=2*s;c.beginPath();c.moveTo(0,-16*s);c.lineTo(5*s,0);c.lineTo(0,14*s);c.lineTo(-5*s,0);c.closePath();c.fill();c.stroke();c.strokeStyle='rgba(150,220,255,0.8)';c.lineWidth=1*s;c.beginPath();c.moveTo(0,-14*s);c.lineTo(0,12*s);c.stroke();c.restore();}},
+  {lv:5, name:'金剑',    c:'#ffcc00',g:'rgba(255,200,0,0.9)',R:52,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=16;c.fillStyle=this.c+'88';c.strokeStyle=this.c;c.lineWidth=2.5*s;c.beginPath();c.moveTo(0,-17*s);c.lineTo(7*s,4*s);c.lineTo(3*s,16*s);c.lineTo(-3*s,16*s);c.lineTo(-7*s,4*s);c.closePath();c.fill();c.stroke();c.restore();}},
+  {lv:6, name:'火焰刃',  c:'#ff6622',g:'rgba(255,80,20,1)',R:54,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=20;c.strokeStyle=this.c;c.lineWidth=4*s;c.lineCap='round';c.beginPath();c.moveTo(0,16*s);c.bezierCurveTo(6*s,8*s,-6*s,0,4*s,-8*s);c.bezierCurveTo(8*s,-12*s,0,-18*s,0,-18*s);c.stroke();c.strokeStyle='rgba(255,220,80,0.7)';c.lineWidth=1.5*s;c.beginPath();c.moveTo(0,14*s);c.bezierCurveTo(4*s,6*s,-4*s,0,2*s,-8*s);c.stroke();c.restore();}},
+  {lv:7, name:'寒冰刃',  c:'#00ddee',g:'rgba(0,220,240,0.9)',R:56,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=18;c.fillStyle=this.c+'55';c.strokeStyle=this.c;c.lineWidth=2*s;c.lineJoin='miter';c.beginPath();c.moveTo(0,-18*s);c.lineTo(4*s,-8*s);c.lineTo(2*s,-4*s);c.lineTo(6*s,2*s);c.lineTo(2*s,6*s);c.lineTo(4*s,12*s);c.lineTo(0,18*s);c.lineTo(-4*s,12*s);c.lineTo(-2*s,6*s);c.lineTo(-6*s,2*s);c.lineTo(-2*s,-4*s);c.lineTo(-4*s,-8*s);c.closePath();c.fill();c.stroke();c.restore();}},
+  {lv:8, name:'死神镰',  c:'#bb44ff',g:'rgba(180,50,255,1)',R:59,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=20;c.strokeStyle=this.c;c.lineWidth=3*s;c.lineCap='round';c.beginPath();c.moveTo(0,20*s);c.lineTo(0,-10*s);c.stroke();c.lineWidth=5*s;c.beginPath();c.arc(-5*s,-10*s,14*s,0.2,Math.PI*1.3);c.stroke();c.restore();}},
+  {lv:9, name:'血月刃',  c:'#ff2266',g:'rgba(255,20,80,1)',R:62,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=22;c.strokeStyle=this.c;c.lineWidth=5*s;c.lineCap='round';c.beginPath();c.arc(0,0,16*s,Math.PI*1.1,Math.PI*2.9);c.stroke();c.fillStyle=this.c;[Math.PI*1.1,Math.PI*2.9].forEach(a2=>{c.beginPath();c.arc(Math.cos(a2)*16*s,Math.sin(a2)*16*s,3*s,0,Math.PI*2);c.fill();});c.restore();}},
+  {lv:10,name:'雷霆戟',  c:'#ffaa00',g:'rgba(255,170,0,1)',R:65,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=22;c.strokeStyle=this.c;c.lineWidth=3*s;c.lineCap='round';c.beginPath();c.moveTo(0,22*s);c.lineTo(0,-14*s);c.stroke();c.lineWidth=4*s;c.beginPath();c.moveTo(0,-14*s);c.lineTo(-10*s,-6*s);c.stroke();c.lineWidth=5*s;c.beginPath();c.moveTo(-3*s,-10*s);c.lineTo(3*s,-22*s);c.stroke();c.restore();}},
+  {lv:11,name:'圣光剑',  c:'#ffffff',g:'rgba(255,255,220,1)',R:68,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=25;c.strokeStyle='rgba(255,255,200,0.95)';c.lineWidth=5*s;c.lineCap='round';c.beginPath();c.moveTo(0,-20*s);c.lineTo(0,18*s);c.stroke();c.lineWidth=4*s;c.beginPath();c.moveTo(-10*s,-4*s);c.lineTo(10*s,-4*s);c.stroke();c.restore();}},
+  {lv:12,name:'混沌神器',c:'#f4c542',g:'rgba(244,180,60,1)',R:72,
+   d(c,cx,cy,a,s){c.save();c.translate(cx,cy);c.rotate(a);c.shadowColor=this.g;c.shadowBlur=28;['#f4c542','#ff44aa','#44ffff','#aa44ff'].forEach((col,i)=>{c.save();c.rotate(i*Math.PI/2);c.strokeStyle=col;c.lineWidth=3.5*s;c.lineCap='round';c.beginPath();c.moveTo(0,-20*s);c.lineTo(4*s,-8*s);c.lineTo(0,0);c.stroke();c.restore();});c.fillStyle='#fff';c.beginPath();c.arc(0,0,3.5*s,0,Math.PI*2);c.fill();c.restore();}},
+  {lv:13,name:'末日飞镖',c:'#3355ff',g:'rgba(80,120,255,1)',R:0,d(){}}, // special: darts
+];
+
+const WORLD=6000,ORBIT_SPD=2.4,MAX_BLADES=10,MAX_LV=13,DART_SPEED=7,DART_RANGE=380;
+let player,enemies=[],groundBlades=[],droppedBlades=[],particles=[],darts=[];
+let kills=0,score=0,gameRunning=false,gameTime=0,playerMaxLevel=1,isDartMode=false,dartModeFlash=0;
+let boss=null,bossSpawned=false,bossDefeated=false,victoryTimer=0,victoryAnim=false,isBossMode=false;
+let canRevive=true,reviveShield=0;
+let cam={x:0,y:0},jDelta={x:0,y:0},jActive=false;
+let keys={w:0,a:0,s:0,d:0},lastTime=0,enemyTimer=0,bladeTimer=0;
+
+window.addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='w')keys.w=1;if(k==='a')keys.a=1;if(k==='s')keys.s=1;if(k==='d')keys.d=1;
+});
+window.addEventListener('keyup',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='w')keys.w=0;if(k==='a')keys.a=0;if(k==='s')keys.s=0;if(k==='d')keys.d=0;
+});
+
+function makePlayer(){
+  return{x:WORLD/2,y:WORLD/2,vx:0,vy:0,r:17,bladeLevel:1,bladeCount:1,orbitAngle:0,speed:5.5,alive:true};
+}
+function makeEnemy(){
+  const a=Math.random()*Math.PI*2,d=520+Math.random()*380;
+  const x=Math.max(60,Math.min(WORLD-60,player.x+Math.cos(a)*d));
+  const y=Math.max(60,Math.min(WORLD-60,player.y+Math.sin(a)*d));
+  // Enemy level scales with player max, spread increases with level
+  const base=Math.max(1,playerMaxLevel-1);
+  const spread=Math.max(2,Math.floor(base*0.7));
+  const lv=Math.max(1,Math.min(12,base+Math.floor((Math.random()-0.3)*spread)));
+  const cnt=1+Math.floor(Math.random()*Math.min(4,Math.max(1,lv-1)));
+  return{x,y,vx:0,vy:0,r:16,bladeLevel:lv,bladeCount:cnt,orbitAngle:Math.random()*Math.PI*2,
+    speed:1.1+lv*0.13+Math.random()*0.55,alive:true,
+    wAngle:Math.random()*Math.PI*2,wTimer:0,aggroRange:230+lv*18,atCd:0};
+}
+function makeGround(nx,ny){
+  const a=Math.random()*Math.PI*2,d=120+Math.random()*300;
+  const x=Math.max(40,Math.min(WORLD-40,(nx||WORLD/2)+Math.cos(a)*d));
+  const y=Math.max(40,Math.min(WORLD-40,(ny||WORLD/2)+Math.sin(a)*d));
+  // No upgrade blades at high level (>=11) since lv12 is max enemy
+  const pLv=player?player.bladeLevel:1;
+  const canUpgrade=pLv<12;
+  const isUp=canUpgrade&&Math.random()<0.15;
+  const lv=isUp?Math.min(12,pLv+(Math.random()<0.4?2:1)):Math.min(12,pLv);
+  return{x,y,lv,isUp,angle:Math.random()*Math.PI*2,bob:0};
+}
+function makeDrop(x,y,lv){
+  return{x:x+(Math.random()*30-15),y:y+(Math.random()*30-15),lv,angle:Math.random()*Math.PI*2,bob:0,life:15};
+}
+function spawnFx(x,y,color,n=8){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2,sp=1.5+Math.random()*3.5;
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color,r:2+Math.random()*3});
+  }
+}
+function spawnExplosion(x,y){
+  for(let i=0;i<24;i++){
+    const a=Math.random()*Math.PI*2,sp=2+Math.random()*5;
+    const col=['#3355ff','#88aaff','#ffffff','#ffdd44'][Math.floor(Math.random()*4)];
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,color:col,r:3+Math.random()*5});
+  }
+}
+
+function startGame(mode){
+  ['ov-start','ov-death','ov-win','ov-exit'].forEach(id=>document.getElementById(id).style.display='none');
+  gameRunning=true;kills=0;score=0;gameTime=0;playerMaxLevel=1;
+  isDartMode=(mode==='dart'||mode==='boss');
+  isBossMode=(mode==='boss');
+  player=makePlayer();enemies=[];groundBlades=[];droppedBlades=[];particles=[];darts=[];
+  boss=null;bossSpawned=false;bossDefeated=false;victoryTimer=0;victoryAnim=false;
+  canRevive=true;reviveShield=0;
+  enemyTimer=0;bladeTimer=0;
+  for(let i=0;i<16;i++)enemies.push(makeEnemy());
+  if(isDartMode){
+    player.bladeLevel=13;playerMaxLevel=13;
+    activateDartMode();
+    if(isBossMode){
+      setTimeout(spawnBoss,1500);
+    }
+  } else {
+    for(let i=0;i<20;i++)groundBlades.push(makeGround(WORLD/2,WORLD/2));
+  }
+  updateHUD();
+}
+function showStart(){['ov-death','ov-win','ov-exit'].forEach(id=>document.getElementById(id).style.display='none');document.getElementById('ov-start').style.display='flex';gameRunning=false;}
+function doRevive(){
+  if(!canRevive) return;
+  canRevive=false;
+  document.getElementById('ov-death').style.display='none';
+  // Revive player in place, keep bladeLevel and bladeCount
+  const savedLv=player?player.bladeLevel:1;
+  const savedCnt=player?player.bladeCount:1;
+  const savedX=player?player.x:WORLD/2;
+  const savedY=player?player.y:WORLD/2;
+  player=makePlayer();
+  player.bladeLevel=savedLv;
+  player.bladeCount=savedCnt;
+  player.x=savedX;
+  player.y=savedY;
+  reviveShield=180; // ~3s at 60fps, will use dt-based countdown
+  gameRunning=true;
+  spawnFx(player.x,player.y,'#ffcc00',30);
+  spawnFx(player.x,player.y,'#ffffff',20);
+  SFX.levelUp();
+}
+
+function triggerVictory(){
+  SFX.dartMode(); // big sound
+  // Explode boss dramatically
+  for(let i=0;i<8;i++) setTimeout(()=>{
+    if(boss) spawnFx(boss.x+(Math.random()-0.5)*120,boss.y+(Math.random()-0.5)*120,'#f4c542',20);
+  }, i*120);
+  victoryAnim=true;
+  victoryTimer=3.5;
+  enemies=[];
+}
+
+function showVictoryScreen(){
+  gameRunning=false;
+  document.getElementById('ws').innerHTML=
+    `⚔️ 击杀：<b>${kills}</b><br>🏆 得分：<b>${score}</b><br>💀 混沌领主已被歼灭`;
+  document.getElementById('ov-win').style.display='flex';
+  document.getElementById('ov-win').querySelector('h2').textContent='👑 你是最强剑客';
+}
+
+function showDeath(){
+  SFX.death();
+  gameRunning=false;
+  document.getElementById('ds').innerHTML=`击杀：<b>${kills}</b><br>得分：<b>${score}</b>`;
+  // Show revive button only in normal mode and if not used yet
+  const revBtn=document.getElementById('revive-btn');
+  revBtn.style.display=(!isDartMode&&!isBossMode&&canRevive)?'block':'none';
+  document.getElementById('ov-death').style.display='flex';
+}
+function showWin(){
+  if(isBossMode){
+    // Boss mode: straight to darts + boss
+    activateDartMode();
+    setTimeout(spawnBoss, 2000);
+  } else if(isDartMode){
+    // Already in dart mode (shouldn't happen but safe fallback)
+    activateDartMode();
+  } else {
+    // Normal mode reaching lv13: show hero/coward choice
+    gameRunning=false; // pause game
+    document.getElementById('ov-choice').style.display='flex';
+  }
+}
+
+function activateDartMode(){
+  isDartMode=true;
+  initDarts();
+  SFX.dartMode();
+  groundBlades=[];
+  droppedBlades=[];
+  spawnFx(player.x,player.y,'#3355ff',50);
+  spawnFx(player.x,player.y,'#ffffff',35);
+  dartModeFlash=120;
+}
+
+function chooseHero(){
+  document.getElementById('ov-choice').style.display='none';
+  gameRunning=true;
+  activateDartMode();
+  setTimeout(spawnBoss, 2500);
+}
+
+function chooseCoward(){
+  document.getElementById('ov-choice').style.display='none';
+  gameRunning=true;
+  activateDartMode();
+  // No boss - just pure dart carnage
+}
+
+function spawnBoss(){
+  if(!gameRunning||bossSpawned) return;
+  bossSpawned=true;
+  // Spawn at edge of view
+  const a=Math.random()*Math.PI*2;
+  const d=600+Math.random()*200;
+  boss={
+    x:Math.max(120,Math.min(WORLD-120,player.x+Math.cos(a)*d)),
+    y:Math.max(120,Math.min(WORLD-120,player.y+Math.sin(a)*d)),
+    vx:0,vy:0,
+    r:58, // 4x normal size
+    bladeLevel:12,
+    bladeCount:8,
+    orbitAngle:0,
+    speed:1.8,
+    alive:true,
+    hp:40, maxHp:40,
+    // skill: fan shot
+    skillCd:1.5, skillTimer:0, homingCd:2.5, homingTimer:0,
+    // projectiles
+    projectiles:[],
+    // entry animation
+    entryTimer:4.0, invincible:true,
+    flashTimer:0,
+    vx:0,vy:0,
+  };
+  // Clear all regular enemies - boss fight is 1v1
+  enemies=[];
+  SFX.levelUp();
+  dartModeFlash=90;
+  bossFlash=true;
+}
+
+let bossFlash=false;
+
+function makeBossProjectile(angle){
+  return{
+    x:boss.x, y:boss.y,
+    vx:Math.cos(angle)*13, vy:Math.sin(angle)*13,
+    r:8, life:2.5, angle, homing:false,
+  };
+}
+function makeBossHomingBullet(){
+  const angle=Math.atan2(player.y-boss.y,player.x-boss.x);
+  return{
+    x:boss.x, y:boss.y,
+    vx:Math.cos(angle)*5, vy:Math.sin(angle)*5,
+    r:10, life:6, angle, homing:true,
+  };
+}
+function askExit(){if(!gameRunning)return;document.getElementById('ov-exit').style.display='flex';}
+function doExit(){gameRunning=false;['ov-exit'].forEach(id=>document.getElementById(id).style.display='none');showStart();}
+function cancelExit(){document.getElementById('ov-exit').style.display='none';}
+
+function updateHUD(){
+  if(!player)return;
+  const bd=BLADES[player.bladeLevel-1];
+  document.getElementById('bn').textContent=bd.name+' Lv'+bd.lv;
+  document.getElementById('blade-hud').style.borderColor=bd.c;
+  document.getElementById('bc').textContent=player.bladeLevel===13?'🎯 飞镖模式':player.bladeCount+'/'+(MAX_BLADES-1)+'把';
+  document.getElementById('kill-counter').textContent='⚔️ 击杀：'+kills;
+  document.getElementById('sv').textContent=score;
+}
+
+// Joystick
+const jzone=document.getElementById('jzone'),jbase=document.getElementById('jbase'),jstick=document.getElementById('jstick');
+let jOrigin={x:0,y:0};
+function setJoy(dx,dy){const d=Math.sqrt(dx*dx+dy*dy),mr=48,cl=Math.min(d,mr),a=Math.atan2(dy,dx);jstick.style.left=(50+Math.cos(a)*cl/mr*50)+'%';jstick.style.top=(50+Math.sin(a)*cl/mr*50)+'%';jDelta={x:Math.cos(a)*cl/mr,y:Math.sin(a)*cl/mr};}
+function endJoy(){jActive=false;jDelta={x:0,y:0};jbase.style.display='none';jstick.style.left='50%';jstick.style.top='50%';}
+jzone.addEventListener('touchstart',e=>{e.preventDefault();const t=e.changedTouches[0];jActive=true;jOrigin={x:t.clientX,y:t.clientY};jbase.style.left=t.clientX+'px';jbase.style.top=t.clientY+'px';jbase.style.display='block';},{passive:false});
+jzone.addEventListener('touchmove',e=>{e.preventDefault();if(!jActive)return;const t=e.changedTouches[0];setJoy(t.clientX-jOrigin.x,t.clientY-jOrigin.y);},{passive:false});
+jzone.addEventListener('touchend',e=>{e.preventDefault();endJoy();},{passive:false});
+jzone.addEventListener('touchcancel',e=>{e.preventDefault();endJoy();},{passive:false});
+let mdown=false;
+jzone.addEventListener('mousedown',e=>{mdown=true;jActive=true;jOrigin={x:e.clientX,y:e.clientY};jbase.style.left=e.clientX+'px';jbase.style.top=e.clientY+'px';jbase.style.display='block';});
+window.addEventListener('mousemove',e=>{if(!mdown)return;setJoy(e.clientX-jOrigin.x,e.clientY-jOrigin.y);});
+window.addEventListener('mouseup',()=>{mdown=false;endJoy();});
+
+// Geometry
+function getBossTips(){
+  if(!boss||!boss.alive) return [];
+  const bd=BLADES[11]; // lv12
+  const R=boss.r+bd.R;
+  const res=[];
+  for(let i=0;i<boss.bladeCount;i++){
+    const a=boss.orbitAngle+(i/boss.bladeCount)*Math.PI*2;
+    res.push({x:boss.x+Math.cos(a)*R, y:boss.y+Math.sin(a)*R});
+  }
+  return res;
+}
+
+function tips(e){
+  if(e.bladeLevel>=13)return[];
+  const bd=BLADES[e.bladeLevel-1],R=e.r+bd.R,res=[];
+  for(let i=0;i<e.bladeCount;i++){const a=e.orbitAngle+(i/e.bladeCount)*Math.PI*2;res.push({x:e.x+Math.cos(a)*R,y:e.y+Math.sin(a)*R});}
+  return res;
+}
+function tipHitsBody(att,def){
+  const ts=tips(att),r2=(def.r+8)*(def.r+8);
+  for(const t of ts){const dx=t.x-def.x,dy=t.y-def.y;if(dx*dx+dy*dy<r2)return true;}
+  return false;
+}
+function tipHitsTips(a,b){
+  const at=tips(a),bt=tips(b);
+  for(const p of at)for(const q of bt){const dx=p.x-q.x,dy=p.y-q.y;if(dx*dx+dy*dy<22*22)return true;}
+  return false;
+}
+
+// Kill entity and drop blades
+function killEntity(e,byPlayer,upgradeOnKill){
+  e.alive=false;
+  spawnFx(e.x,e.y,BLADES[e.bladeLevel-1].c,14);
+  if(byPlayer){
+    kills++;
+    score+=BLADES[e.bladeLevel-1].lv*100;
+    SFX.kill();
+    if(upgradeOnKill&&player.bladeLevel<MAX_LV){
+      player.bladeLevel=Math.min(MAX_LV,player.bladeLevel+1);
+      playerMaxLevel=Math.max(playerMaxLevel,player.bladeLevel);
+      SFX.levelUp();
+  if(player.bladeLevel===13){showWin();}
+    }
+  }
+  // Drop 5 blades on kill, always capped at lv12 (no dart drops)
+  const pLv = player ? player.bladeLevel : 1;
+  const dropLv = Math.min(12, e.bladeLevel > pLv ? e.bladeLevel : pLv);
+  for(let k=0;k<5;k++) droppedBlades.push(makeDrop(e.x,e.y,dropLv));
+  updateHUD();
+}
+
+// Draw blade orbiting entity
+function drawEntityBlades(e,sx,sy){
+  if(e.bladeLevel>=13)return;
+  const bd=BLADES[e.bladeLevel-1],R=e.r+bd.R;
+  for(let i=0;i<e.bladeCount;i++){
+    const a=e.orbitAngle+(i/e.bladeCount)*Math.PI*2;
+    bd.d(ctx,sx+Math.cos(a)*R,sy+Math.sin(a)*R,a+Math.PI/2,1.0);
+  }
+}
+
+function drawEntity(e,isPlayer){
+  const sx=e.x-cam.x,sy=e.y-cam.y;
+  const cullM=isDartMode?Math.max(W,H):160;
+  if(sx<-cullM||sx>W+cullM||sy<-cullM||sy>H+cullM)return;
+  const bd=BLADES[e.bladeLevel-1];
+  const isStronger=!isPlayer&&e.bladeLevel>player.bladeLevel;
+  ctx.save();
+  ctx.shadowColor=isStronger?'rgba(255,0,0,0.8)':bd.g;
+  ctx.shadowBlur=isStronger?22:9;
+  ctx.beginPath();ctx.arc(sx,sy,e.r,0,Math.PI*2);
+  const g=ctx.createRadialGradient(sx-4,sy-5,2,sx,sy,e.r);
+  g.addColorStop(0,isPlayer?'#fff':'#fde8c8');g.addColorStop(1,isPlayer?'#999':'#b06030');
+  ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle=isStronger?'#ff1111':bd.c;ctx.lineWidth=isStronger?4:2;ctx.stroke();
+  ctx.restore();
+  // Eyes
+  let edx=0,edy=0;
+  if(isPlayer){const jl=Math.sqrt(jDelta.x*jDelta.x+jDelta.y*jDelta.y);if(jl>0.05){edx=jDelta.x/jl;edy=jDelta.y/jl;} else {const kx=keys.d-keys.a,ky=keys.s-keys.w,kl=Math.sqrt(kx*kx+ky*ky);if(kl>0){edx=kx/kl;edy=ky/kl;}}}
+  else{const vl=Math.sqrt(e.vx*e.vx+e.vy*e.vy);if(vl>0.1){edx=e.vx/vl;edy=e.vy/vl;}}
+  ctx.save();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(sx+5,sy-3,4.2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sx-3,sy-3,4.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#111';ctx.beginPath();ctx.arc(sx+5+edx*3.2,sy-3+edy*3.2,2.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sx-3+edx*3.2,sy-3+edy*3.2,2.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.8)';ctx.beginPath();ctx.arc(sx+5+edx*3.2+1.2,sy-3+edy*3.2-1,1,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(sx-3+edx*3.2+1.2,sy-3+edy*3.2-1,1,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  if(!isPlayer){
+    ctx.save();ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.textBaseline='bottom';
+    ctx.fillStyle=isStronger?'#ff5555':bd.c;ctx.shadowColor=bd.g;ctx.shadowBlur=4;
+    ctx.fillText('Lv'+e.bladeLevel+(e.bladeCount>1?' ×'+e.bladeCount:''),sx,sy-e.r-3);ctx.restore();
+  }
+  drawEntityBlades(e,sx,sy);
+  // Lv13 aura
+  if(isPlayer&&e.bladeLevel===13){
+    ctx.save();const t=Date.now()*0.003;
+    ctx.shadowColor='#3355ff';ctx.shadowBlur=30;ctx.strokeStyle='rgba(80,120,255,0.4)';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(sx,sy,e.r+20+Math.sin(t)*5,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// Darts (level 13 weapon)
+// ── DART SYSTEM ──────────────────────────────────────────────
+// 3 fixed darts orbit player when idle, hunt enemies when in range
+const NUM_DARTS=5;
+const DART_ORBIT_R=70;
+const DART_ORBIT_SPD=2.2;
+const DART_HUNT_SPD=55;
+const DART_HUNT_RANGE=400;
+
+function initDarts(){
+  darts=[];
+  for(let i=0;i<NUM_DARTS;i++){
+    darts.push({
+      x:player.x,y:player.y,
+      vx:0,vy:0,
+      orbitAngle:(i/NUM_DARTS)*Math.PI*2,
+      target:null,
+      state:'orbit', // 'orbit' | 'hunt' | 'return'
+      trail:[],
+      mustReturn:false, // must orbit player once before hitting boss again
+    });
+  }
+}
+
+function findDartTarget(dart){
+  // Boss takes priority - but not during invincible, and not if dart must return first
+  if(boss&&boss.alive&&!boss.invincible&&!(dart&&dart.mustReturn)) return boss;
+  // Nearest alive enemy in range (not already targeted)
+  const targeted=new Set(darts.filter(d=>d.target&&d.target.alive&&d.target!==boss).map(d=>d.target));
+  let best=null,bestD=Infinity;
+  enemies.forEach(e=>{
+    if(!e.alive||targeted.has(e))return;
+    const dx=e.x-player.x,dy=e.y-player.y,d=Math.sqrt(dx*dx+dy*dy);
+    if(d<DART_HUNT_RANGE&&d<bestD){bestD=d;best=e;}
+  });
+  return best;
+}
+
+function updateDarts(dt){
+  // Orbit angle advances
+  darts.forEach((d,i)=>{
+    // Store trail
+    d.trail.push({x:d.x,y:d.y});
+    if(d.trail.length>28)d.trail.shift();
+
+    if(d.state==='orbit'){
+      // Assign target if available
+      const t=findDartTarget(d);
+      if(t){d.target=t;d.state='hunt';SFX.dartFire();}
+      // Orbit around player
+      d.orbitAngle+=(DART_ORBIT_SPD+i*0.3)*dt*Math.PI;
+      const tx=player.x+Math.cos(d.orbitAngle)*DART_ORBIT_R;
+      const ty=player.y+Math.sin(d.orbitAngle)*DART_ORBIT_R;
+      d.x+=(tx-d.x)*0.25;d.y+=(ty-d.y)*0.25;
+    } else if(d.state==='hunt'){
+      if(!d.target||!d.target.alive){
+        // Target dead, find new or return
+        const t=findDartTarget(d);
+        if(t){d.target=t;}
+        else{d.target=null;d.state='return';}
+      }
+      if(d.target&&d.target.alive){
+        const dx=d.target.x-d.x,dy=d.target.y-d.y,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>1){d.x+=dx/dist*DART_HUNT_SPD;d.y+=dy/dist*DART_HUNT_SPD;}
+        // Hit!
+        if(dist<d.target.r+10){
+          if(d.target===boss){
+            // Boss: damage only (handled in boss section above)
+            // skip here, boss dart hit logic is in boss update block
+          } else {
+            spawnExplosion(d.target.x,d.target.y);
+            SFX.dartKill();
+            killEntity(d.target,true,false);
+            d.target=null;
+            const next=findDartTarget();
+            if(next){d.target=next;}
+            else{d.state='return';}
+          }
+        }
+      }
+    } else { // return
+      const t=findDartTarget(d);
+      if(t){d.target=t;d.state='hunt';}
+      else{
+        // Fly back to orbit position
+        d.orbitAngle+=(DART_ORBIT_SPD+i*0.3)*dt*Math.PI;
+        const tx=player.x+Math.cos(d.orbitAngle)*DART_ORBIT_R;
+        const ty=player.y+Math.sin(d.orbitAngle)*DART_ORBIT_R;
+        const dx=tx-d.x,dy=ty-d.y,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>2){d.x+=dx/dist*DART_HUNT_SPD*0.7;d.y+=dy/dist*DART_HUNT_SPD*0.7;}
+        else{d.state='orbit';d.mustReturn=false;}
+      }
+    }
+  });
+}
+
+function drawDarts(){
+  if(!darts.length)return;
+  darts.forEach(d=>{
+    // Red thin trail only - no body
+    const tlen=d.trail.length;
+    for(let i=1;i<tlen;i++){
+      const a=i/tlen;
+      const pt=d.trail[i],pp=d.trail[i-1];
+      ctx.save();
+      ctx.globalAlpha=a*0.9;
+      ctx.strokeStyle=`rgba(255,${Math.floor(a*60)},${Math.floor(a*30)},${a})`;
+      ctx.lineWidth=0.8+a*1.8;
+      ctx.shadowColor='#ff2200';
+      ctx.shadowBlur=6*a;
+      ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(pp.x-cam.x,pp.y-cam.y);
+      ctx.lineTo(pt.x-cam.x,pt.y-cam.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Tiny red glow dot at head
+    if(tlen>0){
+      const last=d.trail[tlen-1];
+      ctx.save();
+      ctx.shadowColor='#ff4422';ctx.shadowBlur=14;
+      ctx.fillStyle='rgba(255,120,80,0.95)';
+      ctx.beginPath();ctx.arc(last.x-cam.x,last.y-cam.y,2.5,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+  });
+}
+
+function drawWarnings(){
+  if(!player)return;
+  const arcR=player.r+50;
+  const warnDist=380;
+  enemies.forEach(e=>{
+    if(!e.alive)return;
+    const dx=e.x-player.x,dy=e.y-player.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>warnDist)return;
+    const intensity=Math.pow(1-dist/warnDist,1.4),angle=Math.atan2(dy,dx);
+    ctx.save();ctx.globalAlpha=0.65*intensity;ctx.strokeStyle='#ff2222';ctx.lineWidth=5+intensity*6;
+    ctx.shadowColor='#ff0000';ctx.shadowBlur=16*intensity;ctx.lineCap='round';
+    // Screen center in zoomed space
+    ctx.beginPath();ctx.arc(W/2,H/2,arcR,angle-0.4,angle+0.4);ctx.stroke();ctx.restore();
+  });
+}
+
+function drawWorld(){
+  // Fill extra large to cover zoom-out bleed
+  const extra=isDartMode?500:0;
+  ctx.fillStyle='#0e0e18';ctx.fillRect(-extra,-extra,W+extra*2,H+extra*2);
+  const gs=80,ox=(-cam.x)%gs,oy=(-cam.y)%gs;
+  ctx.strokeStyle='rgba(255,255,255,0.02)';ctx.lineWidth=1;
+  const extra2=isDartMode?600:0;
+  for(let x=ox-extra2;x<W+extra2;x+=gs){ctx.beginPath();ctx.moveTo(x,-extra2);ctx.lineTo(x,H+extra2);ctx.stroke();}
+  for(let y=oy-extra2;y<H+extra2;y+=gs){ctx.beginPath();ctx.moveTo(-extra2,y);ctx.lineTo(W+extra2,y);ctx.stroke();}
+  ctx.strokeStyle='rgba(255,80,40,0.4)';ctx.lineWidth=4;
+  ctx.strokeRect(-cam.x,-cam.y,WORLD,WORLD);
+}
+
+function drawFx(){particles.forEach(p=>{ctx.save();ctx.globalAlpha=p.life;ctx.fillStyle=p.color;ctx.shadowColor=p.color;ctx.shadowBlur=5;ctx.beginPath();ctx.arc(p.x-cam.x,p.y-cam.y,p.r*p.life,0,Math.PI*2);ctx.fill();ctx.restore();});}
+
+function drawBoss(){
+  if(!boss||!boss.alive) return;
+  const sx=boss.x-cam.x, sy=boss.y-cam.y;
+  const cullM=isDartMode?Math.max(W,H):300;
+  if(sx<-cullM||sx>W+cullM||sy<-cullM||sy>H+cullM) return;
+  const bd=BLADES[11];
+
+  // Body
+  ctx.save();
+  const flash=boss.flashTimer>0&&boss.flashTimer%2===0;
+  ctx.shadowColor=flash?'#ffffff':'rgba(244,197,66,0.9)';
+  ctx.shadowBlur=flash?40:20;
+  ctx.beginPath(); ctx.arc(sx,sy,boss.r,0,Math.PI*2);
+  const g=ctx.createRadialGradient(sx-12,sy-14,4,sx,sy,boss.r);
+  g.addColorStop(0,flash?'#ffffff':'#ffeeaa');
+  g.addColorStop(1,flash?'#ffaa00':'#aa6600');
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle=flash?'#ffffff':'#f4c542'; ctx.lineWidth=4; ctx.stroke();
+
+  // Eyes (big angry)
+  ctx.fillStyle='#ff2200';
+  ctx.beginPath(); ctx.arc(sx+16,sy-10,7,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx-16,sy-10,7,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1a0000';
+  ctx.beginPath(); ctx.arc(sx+18,sy-10,4,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(sx-14,sy-10,4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Boss blades
+  for(let i=0;i<boss.bladeCount;i++){
+    const a=boss.orbitAngle+(i/boss.bladeCount)*Math.PI*2;
+    const R=boss.r+bd.R;
+    bd.d(ctx,sx+Math.cos(a)*R,sy+Math.sin(a)*R,a+Math.PI/2,1.6);
+  }
+
+  // HP bar
+  ctx.save();
+  const barW=boss.r*2.8, barH=13;
+  const bx=sx-barW/2, by=sy-boss.r-28;
+  // Background
+  ctx.fillStyle='rgba(0,0,0,0.75)'; ctx.fillRect(bx-3,by-3,barW+6,barH+6);
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(bx,by,barW,barH);
+  const hpPct=boss.hp/boss.maxHp;
+  if(boss.invincible){
+    // Shield bar - pulsing blue
+    const p=0.6+0.4*Math.sin(Date.now()*0.006);
+    ctx.fillStyle=`rgba(80,150,255,${p})`;
+    ctx.fillRect(bx,by,barW,barH);
+    ctx.fillStyle='#fff'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText('🛡️ 无敌入场中...',sx,by-6);
+  } else {
+    const hpColor=hpPct>0.6?'#44cc44':hpPct>0.3?'#ffaa00':'#ff3333';
+    ctx.fillStyle=hpColor;
+    ctx.fillRect(bx,by,barW*hpPct,barH);
+    // Segment markers every 25%
+    ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=2;
+    for(let seg=1;seg<4;seg++){ctx.beginPath();ctx.moveTo(bx+barW*seg/4,by);ctx.lineTo(bx+barW*seg/4,by+barH);ctx.stroke();}
+    ctx.fillStyle='#fff'; ctx.font='bold 10px Arial'; ctx.textAlign='center';
+    ctx.fillText('混沌领主  ❤️'+boss.hp+'/'+boss.maxHp,sx,by-6);
+  }
+  ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.strokeRect(bx,by,barW,barH);
+  ctx.restore();
+
+  // Invincible shield ring
+  if(boss.invincible){
+    const p=0.5+0.5*Math.sin(Date.now()*0.005);
+    ctx.save();
+    ctx.globalAlpha=0.7*p;
+    ctx.strokeStyle='#4488ff'; ctx.lineWidth=4+p*4;
+    ctx.shadowColor='#2255ff'; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.arc(sx,sy,boss.r+12+p*8,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Boss projectiles
+  boss.projectiles.forEach(p=>{
+    const px=p.x-cam.x,py=p.y-cam.y;
+    ctx.save();
+    if(p.homing){
+      // Purple homing orb with pulsing ring
+      const pulse=0.7+0.3*Math.sin(Date.now()*0.01);
+      ctx.shadowColor='#cc44ff'; ctx.shadowBlur=18*pulse;
+      ctx.fillStyle='#aa22ee';
+      ctx.beginPath(); ctx.arc(px,py,p.r,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(220,150,255,0.8)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(px,py,p.r+4*pulse,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle='rgba(255,200,255,0.9)';
+      ctx.beginPath(); ctx.arc(px,py,p.r*0.4,0,Math.PI*2); ctx.fill();
+    } else {
+      ctx.shadowColor='#ff6622'; ctx.shadowBlur=10;
+      ctx.fillStyle='#ff4400';
+      ctx.beginPath(); ctx.arc(px,py,p.r,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='rgba(255,180,80,0.7)';
+      ctx.beginPath(); ctx.arc(px,py,p.r*0.5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  });
+
+  // Entry animation warning ring
+  if(boss.entryTimer>0){
+    const alpha=boss.entryTimer*0.6;
+    ctx.save(); ctx.globalAlpha=alpha;
+    ctx.strokeStyle='#ff2200'; ctx.lineWidth=3;
+    ctx.shadowColor='#ff0000'; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.arc(sx,sy,boss.r+30+boss.entryTimer*40,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+// Boss warning arc (minimap arrow)
+function drawBossArrow(){
+  if(!boss||!boss.alive||!player) return;
+  const dx=boss.x-player.x, dy=boss.y-player.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist<400) return; // close enough, no arrow needed
+  const angle=Math.atan2(dy,dx);
+  const margin=40;
+  const ax=W/2+Math.cos(angle)*(Math.min(W,H)/2-margin);
+  const ay=H/2+Math.sin(angle)*(Math.min(W,H)/2-margin);
+  const pulse=0.6+0.4*Math.sin(Date.now()*0.006);
+  ctx.save();
+  ctx.translate(ax,ay); ctx.rotate(angle);
+  ctx.globalAlpha=0.85*pulse;
+  ctx.fillStyle='#f4c542'; ctx.shadowColor='#ffaa00'; ctx.shadowBlur=12;
+  ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(-8,9); ctx.lineTo(-8,-9); ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='bold 9px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('BOSS',0,0);
+  ctx.restore();
+}
+
+function drawMinimap(){
+  if(!player)return;
+  mmx.clearRect(0,0,160,160);
+  mmx.fillStyle='rgba(0,0,0,0.78)';mmx.fillRect(0,0,160,160);
+  mmx.strokeStyle='rgba(255,255,255,0.22)';mmx.lineWidth=2;mmx.strokeRect(0,0,160,160);
+  const sc=160/WORLD;
+  enemies.forEach(e=>{if(!e.alive)return;mmx.fillStyle=BLADES[e.bladeLevel-1].c;mmx.beginPath();mmx.arc(e.x*sc,e.y*sc,2.5,0,Math.PI*2);mmx.fill();});
+  // Boss on minimap
+  if(boss&&boss.alive){
+    const pulse=0.6+0.4*Math.sin(Date.now()*0.008);
+    mmx.fillStyle=`rgba(244,197,66,${pulse})`;
+    mmx.shadowColor='#f4c542'; mmx.shadowBlur=8;
+    mmx.beginPath();mmx.arc(boss.x*sc,boss.y*sc,6,0,Math.PI*2);mmx.fill();
+  }
+  mmx.fillStyle='#ffff00';mmx.shadowColor='#fff';mmx.shadowBlur=5;
+  mmx.beginPath();mmx.arc(player.x*sc,player.y*sc,4,0,Math.PI*2);mmx.fill();
+}
+
+function drawGroundBlades(){
+  [...groundBlades,...droppedBlades].forEach(gb=>{
+    const sx=gb.x-cam.x,sy=gb.y-cam.y;
+    if(sx<-80||sx>W+80||sy<-80||sy>H+80)return;
+    const bd=BLADES[Math.min(11,gb.lv-1)];
+    const by=Math.sin(gb.bob)*4;
+    ctx.save();ctx.translate(sx,sy+by);
+    if(gb.isUp){const p=0.5+0.5*Math.sin(Date.now()*0.008);ctx.shadowColor=bd.g;ctx.shadowBlur=20*p;ctx.strokeStyle='rgba(255,255,100,0.25)';ctx.lineWidth=1;ctx.globalAlpha=0.45*p;for(let i=0;i<6;i++){const a=(i/6)*Math.PI*2;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*24,Math.sin(a)*24);ctx.stroke();}ctx.globalAlpha=1;}
+    // Dropped blade bubble
+    if(gb.life!==undefined){const p=0.5+0.5*Math.sin(Date.now()*0.006);ctx.strokeStyle='rgba(255,150,80,0.5)';ctx.lineWidth=2;ctx.shadowColor='#ff8844';ctx.shadowBlur=10*p;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.stroke();}
+    bd.d(ctx,0,0,gb.angle,0.72);
+    ctx.shadowBlur=0;ctx.fillStyle=gb.isUp?'#f4c542':bd.c;ctx.font=`bold ${gb.isUp?11:9}px Arial`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(gb.isUp?'★'+gb.lv:gb.lv,0,-20);ctx.restore();
+  });
+}
+
+function tryLevelUp(){
+  if(player.bladeLevel>=MAX_LV)return false;
+  player.bladeLevel=Math.min(MAX_LV,player.bladeLevel+1);
+  playerMaxLevel=Math.max(playerMaxLevel,player.bladeLevel);
+  player.bladeCount=1;
+  spawnFx(player.x,player.y,'#ffff44',22);
+  SFX.levelUp();
+  if(player.bladeLevel===13){showWin();}
+  return true;
+}
+
+function addBlade(){
+  player.bladeCount++;
+  if(player.bladeCount>=MAX_BLADES){tryLevelUp();}
+}
+
+function update(dt){
+  if(!gameRunning||!player||!player.alive)return;
+  gameTime+=dt;
+
+  // Movement: WASD + joystick (combine)
+  let mx=keys.d-keys.a+jDelta.x, my=keys.s-keys.w+jDelta.y;
+  const ml=Math.sqrt(mx*mx+my*my);
+  if(ml>1){mx/=ml;my/=ml;}
+  const curSpd=isDartMode?player.speed*2:player.speed;
+  player.x=Math.max(player.r,Math.min(WORLD-player.r,player.x+mx*curSpd));
+  player.y=Math.max(player.r,Math.min(WORLD-player.r,player.y+my*curSpd));
+  player.orbitAngle+=ORBIT_SPD*0.04;
+  if(reviveShield>0)reviveShield=Math.max(0,reviveShield-dt*60);
+  // cam always centers on player
+  cam.x=player.x-W/2;cam.y=player.y-H/2;
+
+  // Spawn enemies - fewer as player level rises
+  enemyTimer+=dt;
+  // No regular enemies during boss fight
+  if(!boss||!boss.alive){
+    const maxEnemies=isDartMode?80:Math.max(20,50-playerMaxLevel*3);
+    const spawnInt=isDartMode?0.4:Math.max(1.2,2.5+playerMaxLevel*0.15);
+    if(enemyTimer>spawnInt&&enemies.length<maxEnemies){enemies.push(makeEnemy());enemyTimer=0;}
+  }
+
+  // Darts (lv13) - 3 fixed darts that orbit player and auto-hunt enemies
+  if(player.bladeLevel===13){
+    updateDarts(dt);
+  }
+
+  let playerDead=false,bLost=0;
+
+  // ── BOSS UPDATE ──────────────────────────────────────────
+  if(boss&&boss.alive&&!playerDead){
+    boss.orbitAngle+=0.028; // slower rotation
+    boss.entryTimer=Math.max(0,boss.entryTimer-dt);
+    if(boss.entryTimer<=0&&boss.invincible){
+      boss.invincible=false;
+      // Flash to signal vulnerability
+      boss.flashTimer=20;
+      SFX.levelUp();
+    }
+
+    // Move toward player
+    const bdx=player.x-boss.x,bdy=player.y-boss.y;
+    const bdist=Math.sqrt(bdx*bdx+bdy*bdy);
+    if(bdist>1){boss.vx=bdx/bdist*boss.speed;boss.vy=bdy/bdist*boss.speed;}
+    boss.x=Math.max(boss.r,Math.min(WORLD-boss.r,boss.x+boss.vx));
+    boss.y=Math.max(boss.r,Math.min(WORLD-boss.r,boss.y+boss.vy));
+
+    // Body collision with player
+    if(bdist<player.r+boss.r+2&&reviveShield<=0){playerDead=true;spawnFx(player.x,player.y,'#ff3333',25);}
+
+    // Boss blade hits player
+    if(!playerDead&&reviveShield<=0){
+      const bTips=getBossTips();
+      for(const t of bTips){
+        const dx=t.x-player.x,dy=t.y-player.y;
+        if(dx*dx+dy*dy<(player.r+8)*(player.r+8)){playerDead=true;spawnFx(player.x,player.y,'#ff3333',25);break;}
+      }
+    }
+
+    // Dart hits boss
+    // entryTimer > 0 = fully invincible, darts are repelled
+    // hitCooldown prevents multi-hit in same window
+    if(boss.hitCooldown===undefined) boss.hitCooldown=0;
+    boss.hitCooldown=Math.max(0, boss.hitCooldown-dt);
+    for(let i=darts.length-1;i>=0;i--){
+      const dart=darts[i];
+      if(dart.target!==boss) continue;
+      const dx=dart.x-boss.x,dy=dart.y-boss.y;
+      const distSq=dx*dx+dy*dy;
+      const hitRSq=(boss.r+10)*(boss.r+10);
+      if(distSq<hitRSq){
+        // Always bounce dart back - must return to player before attacking again
+        dart.target=null; dart.state='return'; dart.trail=[];
+        dart.mustReturn=true;
+        // Only deal damage if NOT invincible
+        if(!boss.invincible){
+          boss.hp=Math.max(0, boss.hp-1);
+          boss.flashTimer=12;
+          spawnExplosion(dart.x,dart.y);
+          SFX.dartKill();
+          if(boss.hp<=0){
+            boss.alive=false;
+            bossDefeated=true;
+            triggerVictory();
+          }
+        } else {
+          spawnFx(dart.x,dart.y,'#4488ff',6);
+        }
+      }
+    }
+
+    // Redirect darts to boss - only if dart is orbiting and has no target
+    if(boss.alive){
+      darts.forEach(d=>{
+        if(d.state==='orbit'&&!d.target){
+          d.target=boss; d.state='hunt';
+        }
+      });
+    }
+
+    // Skill 1: fan shot
+    if(boss.alive&&boss.entryTimer<=0){
+      boss.skillTimer+=dt;
+      if(boss.skillTimer>boss.skillCd){
+        boss.skillTimer=0;
+        boss.skillCd=Math.max(0.8,boss.skillCd-0.05);
+        const baseAngle=Math.atan2(player.y-boss.y,player.x-boss.x);
+        const fanCount=5;
+        for(let fi=0;fi<fanCount;fi++){
+          const a=baseAngle+(fi-(fanCount-1)/2)*0.2;
+          boss.projectiles.push(makeBossProjectile(a));
+        }
+        SFX.bladeCrash();
+      }
+      // Skill 2: homing bullets - 3 homing orbs every 2.5s
+      boss.homingTimer+=dt;
+      if(boss.homingTimer>boss.homingCd){
+        boss.homingTimer=0;
+        for(let h=0;h<3;h++){
+          const hb=makeBossHomingBullet();
+          // slight spread
+          const spread=(h-1)*0.3;
+          const baseA=Math.atan2(player.y-boss.y,player.x-boss.x)+spread;
+          hb.vx=Math.cos(baseA)*5; hb.vy=Math.sin(baseA)*5;
+          boss.projectiles.push(hb);
+        }
+      }
+    }
+
+    // Update boss projectiles
+    for(let i=boss.projectiles.length-1;i>=0;i--){
+      const p=boss.projectiles[i];
+      // Homing: slowly steer toward player
+      if(p.homing){
+        const dx=player.x-p.x,dy=player.y-p.y,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>1){
+          const tx=dx/dist*6,ty=dy/dist*6;
+          p.vx+=(tx-p.vx)*0.04; p.vy+=(ty-p.vy)*0.04;
+        }
+      }
+      p.x+=p.vx; p.y+=p.vy; p.life-=dt;
+      if(p.life<=0){boss.projectiles.splice(i,1);continue;}
+      const dx=p.x-player.x,dy=p.y-player.y;
+      if(dx*dx+dy*dy<(player.r+p.r)*(player.r+p.r)&&reviveShield<=0){
+        playerDead=true;
+        spawnFx(player.x,player.y,'#ff3333',20);
+      }
+    }
+    if(boss.flashTimer>0) boss.flashTimer--;
+  }
+
+  // Victory animation
+  if(victoryAnim){
+    victoryTimer-=dt;
+    // Spawn celebration particles
+    if(Math.random()<0.4) spawnFx(
+      player.x+(Math.random()-0.5)*300,
+      player.y+(Math.random()-0.5)*300,
+      ['#f4c542','#ff6622','#3355ff','#ff2266','#00ddee'][Math.floor(Math.random()*5)],6);
+    if(victoryTimer<=0) showVictoryScreen();
+    return;
+  }
+
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    if(!e.alive||playerDead)continue;
+    e.orbitAngle+=ORBIT_SPD*0.04;
+    e.atCd=Math.max(0,e.atCd-dt);
+
+    // AI
+    const dxP=player.x-e.x,dyP=player.y-e.y,distP=Math.sqrt(dxP*dxP+dyP*dyP);
+    let tx=null,ty=null;
+    if(isDartMode){
+      // Dart mode: ALL enemies beeline to player
+      tx=player.x;ty=player.y;
+    } else {
+      let bestDist=Infinity,bestE=null;
+      if(e.bladeLevel>=2){
+        for(let j=0;j<enemies.length;j++){
+          if(j===i||!enemies[j].alive)continue;
+          const oe=enemies[j];if(oe.bladeLevel>=e.bladeLevel)continue;
+          const dx2=oe.x-e.x,dy2=oe.y-e.y,d2=Math.sqrt(dx2*dx2+dy2*dy2);
+          if(d2<320&&d2<bestDist){bestDist=d2;bestE=oe;}
+        }
+      }
+      if(distP<e.aggroRange){tx=player.x;ty=player.y;}
+      else if(bestE){tx=bestE.x;ty=bestE.y;}
+      else{e.wTimer-=dt;if(e.wTimer<=0){e.wAngle=Math.random()*Math.PI*2;e.wTimer=1.5+Math.random()*2;}tx=e.x+Math.cos(e.wAngle)*100;ty=e.y+Math.sin(e.wAngle)*100;}
+    }
+    const tdx=tx-e.x,tdy=ty-e.y,td=Math.sqrt(tdx*tdx+tdy*tdy);
+    if(td>1){e.vx=tdx/td*e.speed;e.vy=tdy/td*e.speed;}
+    e.x=Math.max(e.r,Math.min(WORLD-e.r,e.x+e.vx));
+    e.y=Math.max(e.r,Math.min(WORLD-e.r,e.y+e.vy));
+
+    // Body collision
+    const bDx=e.x-player.x,bDy=e.y-player.y,bD=Math.sqrt(bDx*bDx+bDy*bDy);
+    if(bD<player.r+e.r+2){playerDead=true;spawnFx(player.x,player.y,'#ff3333',20);continue;}
+
+    // Skip blade combat if player is at lv13
+    if(player.bladeLevel===13)continue;
+
+    // Enemy blade tips hit player body
+    const canHit=player.bladeLevel<e.bladeLevel||!tipHitsTips(e,player);
+    if(canHit&&tipHitsBody(e,player)&&reviveShield<=0){playerDead=true;spawnFx(player.x,player.y,'#ff3333',20);continue;}
+
+    // Player blade tips hit enemy body → kill
+    if(tipHitsBody(player,e)){
+      const upgrade=player.bladeLevel<=e.bladeLevel;
+      killEntity(e,true,upgrade);continue;
+    }
+
+    // Blade clash
+    if(tipHitsTips(player,e)&&e.atCd<=0){
+      e.atCd=0.3;
+      SFX.bladeCrash();
+      if(player.bladeLevel>e.bladeLevel){
+        e.bladeCount--;spawnFx(e.x,e.y,BLADES[e.bladeLevel-1].c,5);
+        if(e.bladeCount<=0)killEntity(e,true,false);
+      } else if(e.bladeLevel>player.bladeLevel){
+        if(reviveShield<=0){bLost++;spawnFx(player.x,player.y,'#ff9944',5);}
+      } else {
+        e.bladeCount--;bLost++;spawnFx(e.x,e.y,BLADES[e.bladeLevel-1].c,5);spawnFx(player.x,player.y,'#ff9944',4);
+        if(e.bladeCount<=0)killEntity(e,true,true);
+      }
+    }
+  }
+
+  if(bLost>0&&!playerDead){player.bladeCount=Math.max(0,player.bladeCount-1);if(player.bladeCount<=0&&reviveShield<=0)playerDead=true;}
+  if(playerDead){player.alive=false;showDeath();return;}
+  enemies=enemies.filter(e=>e.alive);
+
+  // Enemy vs enemy
+  for(let i=0;i<enemies.length;i++){
+    for(let j=i+1;j<enemies.length;j++){
+      const a=enemies[i],b=enemies[j];
+      if(!a.alive||!b.alive)continue;
+      const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d<a.r+b.r+2){
+        if(a.bladeLevel>b.bladeLevel){killEntity(b,false,false);}
+        else if(b.bladeLevel>a.bladeLevel){killEntity(a,false,false);}
+        else{killEntity(a,false,false);killEntity(b,false,false);}
+        continue;
+      }
+      if(tipHitsBody(a,b)&&a.bladeLevel>=b.bladeLevel){killEntity(b,false,false);continue;}
+      if(tipHitsBody(b,a)&&b.bladeLevel>=a.bladeLevel){killEntity(a,false,false);continue;}
+      if(tipHitsTips(a,b)){
+        if(a.bladeLevel>b.bladeLevel){b.bladeCount--;if(b.bladeCount<=0)killEntity(b,false,false);}
+        else if(b.bladeLevel>a.bladeLevel){a.bladeCount--;if(a.bladeCount<=0)killEntity(a,false,false);}
+        else{a.bladeCount--;b.bladeCount--;if(a.bladeCount<=0)killEntity(a,false,false);if(b.bladeCount<=0)killEntity(b,false,false);}
+      }
+    }
+  }
+  enemies=enemies.filter(e=>e.alive);
+
+  // Ground blades
+  bladeTimer+=dt;
+  if(!isDartMode&&bladeTimer>1.8&&groundBlades.length<35){groundBlades.push(makeGround(player.x,player.y));bladeTimer=0;}
+  // In dart mode clear any lingering ground blades
+  if(isDartMode&&(groundBlades.length>0||droppedBlades.length>0)){groundBlades=[];droppedBlades=[];}
+  groundBlades.forEach(gb=>{if(!gb.isUp)gb.lv=player.bladeLevel;gb.bob+=0.05;});
+  droppedBlades.forEach(gb=>{gb.life-=dt;gb.bob+=0.05;});
+  droppedBlades=droppedBlades.filter(gb=>gb.life>0);
+
+  // Pickups
+  const allPickups=[...groundBlades,...droppedBlades];
+  for(let i=allPickups.length-1;i>=0;i--){
+    const gb=allPickups[i];
+    const dx=player.x-gb.x,dy=player.y-gb.y;
+    if(dx*dx+dy*dy>(player.r+22)*(player.r+22))continue;
+    if(gb.lv>=13)continue; // no dart pickups
+    if(gb.isUp){
+      if(gb.lv>=player.bladeLevel&&gb.lv<=12){player.bladeLevel=gb.lv;playerMaxLevel=Math.max(playerMaxLevel,player.bladeLevel);addBlade();}
+    } else {
+      addBlade();
+    }
+    SFX.pickupBlade();
+    spawnFx(gb.x,gb.y,BLADES[Math.min(11,gb.lv-1)].c,10);
+    // Remove from original array
+    const gi=groundBlades.indexOf(gb);if(gi>=0)groundBlades.splice(gi,1);
+    const di=droppedBlades.indexOf(gb);if(di>=0)droppedBlades.splice(di,1);
+    updateHUD();
+  }
+
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.91;p.vy*=0.91;p.life-=0.028;});
+  particles=particles.filter(p=>p.life>0);
+  score+=Math.floor(dt*2.5);
+  if(gameTime%0.5<dt)updateHUD();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  if(isDartMode){
+    // Zoom out by scaling around screen center - no black borders
+    const zoom=0.52;
+    ctx.save();
+    ctx.translate(W/2,H/2);
+    ctx.scale(zoom,zoom);
+    ctx.translate(-W/2,-H/2);
+    drawWorld();
+    drawGroundBlades();
+    drawFx();
+    drawDarts();
+    if(enemies)enemies.forEach(e=>{if(e.alive)drawEntity(e,false);});
+    drawBoss();
+    if(player&&player.alive){
+    drawWarnings();drawBossArrow();drawEntity(player,true);
+    if(reviveShield>0){
+      const alpha=(reviveShield%20<10)?0.9:0.4; // flicker
+      const t=Date.now()*0.004;
+      ctx.save();
+      const sx=player.x-cam.x,sy=player.y-cam.y;
+      ctx.globalAlpha=alpha*0.7;
+      ctx.strokeStyle='#ffcc00';ctx.lineWidth=3;
+      ctx.shadowColor='#ffaa00';ctx.shadowBlur=20;
+      ctx.beginPath();ctx.arc(sx,sy,player.r+8+Math.sin(t)*4,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=alpha*0.15;
+      ctx.fillStyle='#ffcc00';
+      ctx.beginPath();ctx.arc(sx,sy,player.r+8,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+  }
+    ctx.restore();
+  } else {
+    drawWorld();
+    drawGroundBlades();
+    drawFx();
+    drawDarts();
+    if(enemies)enemies.forEach(e=>{if(e.alive)drawEntity(e,false);});
+    drawBoss();
+    if(player&&player.alive){
+    drawWarnings();drawBossArrow();drawEntity(player,true);
+    if(reviveShield>0){
+      const alpha=(reviveShield%20<10)?0.9:0.4; // flicker
+      const t=Date.now()*0.004;
+      ctx.save();
+      const sx=player.x-cam.x,sy=player.y-cam.y;
+      ctx.globalAlpha=alpha*0.7;
+      ctx.strokeStyle='#ffcc00';ctx.lineWidth=3;
+      ctx.shadowColor='#ffaa00';ctx.shadowBlur=20;
+      ctx.beginPath();ctx.arc(sx,sy,player.r+8+Math.sin(t)*4,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=alpha*0.15;
+      ctx.fillStyle='#ffcc00';
+      ctx.beginPath();ctx.arc(sx,sy,player.r+8,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+  }
+  }
+  drawMinimap();
+  // Dart mode activation flash
+  if(dartModeFlash>0){
+    dartModeFlash--;
+    const alpha=Math.min(1,dartModeFlash/30);
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle='rgba(30,50,180,0.55)';
+    ctx.fillRect(0,0,W,H);
+    ctx.shadowColor='#88aaff';ctx.shadowBlur=30;
+    ctx.fillStyle='#aaccff';
+    ctx.font='bold '+Math.floor(W/12)+'px Arial';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    if(bossFlash){bossFlash=false;
+      ctx.fillText('⚠️ 混沌领主降临',W/2,H/2-20);
+      ctx.font='bold '+Math.floor(W/22)+'px Arial';
+      ctx.fillStyle='#aa4400';
+      ctx.fillText('BOSS INCOMING',W/2,H/2+28);
+    } else {
+      ctx.fillText('🎯 末日飞镖',W/2,H/2-20);
+      ctx.font='bold '+Math.floor(W/22)+'px Arial';
+      ctx.fillStyle='#667799';
+      ctx.fillText('DART STORM',W/2,H/2+28);
+    }
+    ctx.restore();
+  }
+}
+
+function loop(ts){
+  const dt=Math.min((ts-lastTime)/1000,0.05);
+  lastTime=ts;
+  if(gameRunning)update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(ts=>{lastTime=ts;requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
